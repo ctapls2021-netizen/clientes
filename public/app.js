@@ -7,7 +7,16 @@ const state = {
   activeConversationId: null,
   models: [],
   selectedModelId: 'gemini-3.6-flash',
-  hasGeminiKey: false
+  hasGeminiKey: false,
+  explorer: {
+    allFiles: [],
+    currentPath: '',
+    history: [],
+    searchQuery: '',
+    sortBy: 'name',
+    sortAsc: true,
+    selectedId: null
+  }
 };
 
 // ==========================================
@@ -53,19 +62,36 @@ const DOM = {
   btnCloseActions: document.getElementById('btn-close-actions'),
   actionsList: document.getElementById('actions-list'),
 
-  // Archivos
+  // Archivos & Explorador de Archivos Windows
   btnOpenFiles: document.getElementById('btn-open-files'),
   clientFilesBadge: document.getElementById('client-files-badge'),
-  filesDrawer: document.getElementById('files-drawer'),
+  filesModal: document.getElementById('files-modal'),
+  filesModalOverlay: document.getElementById('files-modal-overlay'),
   btnCloseFiles: document.getElementById('btn-close-files'),
-  drawerClientNameFiles: document.getElementById('drawer-client-name-files'),
-  uploadZone: document.getElementById('upload-zone'),
-  fileInputElement: document.getElementById('file-input-element'),
-  folderInputElement: document.getElementById('folder-input-element'),
+  explorerWindowTitle: document.getElementById('explorer-window-title'),
+  btnRefreshFiles: document.getElementById('btn-refresh-files'),
   btnTriggerFiles: document.getElementById('btn-trigger-files'),
   btnTriggerFolder: document.getElementById('btn-trigger-folder'),
-  filesTotalCount: document.getElementById('files-total-count'),
-  filesList: document.getElementById('files-list'),
+  fileInputElement: document.getElementById('file-input-element'),
+  folderInputElement: document.getElementById('folder-input-element'),
+  btnNavBack: document.getElementById('btn-nav-back'),
+  btnNavUp: document.getElementById('btn-nav-up'),
+  explorerBreadcrumbs: document.getElementById('explorer-breadcrumbs'),
+  explorerSearchInput: document.getElementById('explorer-search-input'),
+  explorerTableBody: document.getElementById('explorer-table-body'),
+  explorerEmptyState: document.getElementById('explorer-empty-state'),
+  statusbarItemsCount: document.getElementById('statusbar-items-count'),
+  statusbarSelectedInfo: document.getElementById('statusbar-selected-info'),
+  explorerSyncStatus: document.getElementById('explorer-sync-status'),
+  quickLinkCurrentAgent: document.getElementById('quick-link-current-agent'),
+  quickLinkAgentName: document.getElementById('quick-link-agent-name'),
+  quickLinkDownloads: document.getElementById('quick-link-downloads'),
+  quickLinkAyrton: document.getElementById('quick-link-ayrton'),
+  uploadZone: document.getElementById('upload-zone'),
+  thSortName: document.getElementById('th-sort-name'),
+  thSortDate: document.getElementById('th-sort-date'),
+  thSortType: document.getElementById('th-sort-type'),
+  thSortSize: document.getElementById('th-sort-size'),
   fileViewerModal: document.getElementById('file-viewer-modal'),
   btnCloseViewer: document.getElementById('btn-close-viewer'),
   viewerFilename: document.getElementById('viewer-filename'),
@@ -132,12 +158,36 @@ function setupEventListeners() {
   DOM.btnOpenActions.addEventListener('click', openActionsDrawer);
   DOM.btnCloseActions.addEventListener('click', closeActionsDrawer);
 
-  // Drawer de Archivos y Subida
+  // Explorador de Archivos Estilo Windows
   DOM.btnOpenFiles.addEventListener('click', openFilesDrawer);
   DOM.btnCloseFiles.addEventListener('click', closeFilesDrawer);
+  DOM.filesModalOverlay.addEventListener('click', closeFilesDrawer);
+  DOM.btnRefreshFiles.addEventListener('click', () => {
+    const current = getCurrentClient();
+    if (current) loadClientFiles(current.id);
+  });
+  DOM.btnNavBack.addEventListener('click', navigateBack);
+  DOM.btnNavUp.addEventListener('click', navigateUp);
+  DOM.explorerSearchInput.addEventListener('input', (e) => {
+    state.explorer.searchQuery = e.target.value.trim().toLowerCase();
+    renderExplorerTable();
+  });
+
+  // Accesos rápidos laterales
+  DOM.quickLinkDownloads.addEventListener('click', () => navigateToFolder(''));
+  DOM.quickLinkAyrton.addEventListener('click', () => navigateToFolder(''));
+  DOM.quickLinkCurrentAgent.addEventListener('click', () => navigateToFolder(''));
+
+  // Ordenamiento de columnas
+  DOM.thSortName.addEventListener('click', () => toggleSort('name'));
+  DOM.thSortDate.addEventListener('click', () => toggleSort('date'));
+  DOM.thSortType.addEventListener('click', () => toggleSort('type'));
+  DOM.thSortSize.addEventListener('click', () => toggleSort('size'));
+
+  // Visor de código/archivos
   DOM.btnCloseViewer.addEventListener('click', () => DOM.fileViewerModal.classList.add('hidden'));
 
-  // Upload handlers (click & drag and drop)
+  // Subida de archivos y carpetas
   DOM.btnTriggerFiles.addEventListener('click', (e) => {
     e.stopPropagation();
     DOM.fileInputElement.click();
@@ -605,15 +655,16 @@ function closeActionsDrawer() {
 }
 
 // ==========================================
-// GESTOR DE ARCHIVOS POR CLIENTE
+// EXPLORADOR DE ARCHIVOS ESTILO WINDOWS
 // ==========================================
+
 async function loadClientFiles(clientId) {
   try {
     const res = await fetch(`/api/clients/${clientId}/files`);
     const files = await res.json();
+    state.explorer.allFiles = files;
     DOM.clientFilesBadge.textContent = files.length;
-    DOM.filesTotalCount.textContent = `${files.length} archivo${files.length === 1 ? '' : 's'}`;
-    renderFilesList(files);
+    renderExplorer();
     return files;
   } catch (err) {
     console.error('Error cargando archivos:', err);
@@ -625,13 +676,404 @@ async function openFilesDrawer() {
   const client = getCurrentClient();
   if (!client) return;
 
-  DOM.drawerClientNameFiles.textContent = client.name;
-  DOM.filesDrawer.classList.remove('hidden');
+  state.explorer.currentPath = '';
+  state.explorer.history = [];
+  state.explorer.searchQuery = '';
+  state.explorer.selectedId = null;
+  DOM.explorerSearchInput.value = '';
+
+  DOM.explorerWindowTitle.textContent = `Explorador de Archivos - ${client.name}`;
+  DOM.quickLinkAgentName.textContent = client.name;
+  DOM.filesModal.classList.remove('hidden');
+
   await loadClientFiles(client.id);
 }
 
 function closeFilesDrawer() {
-  DOM.filesDrawer.classList.add('hidden');
+  DOM.filesModal.classList.add('hidden');
+}
+
+function navigateToFolder(folderPath) {
+  if (state.explorer.currentPath !== folderPath) {
+    state.explorer.history.push(state.explorer.currentPath);
+  }
+  state.explorer.currentPath = folderPath;
+  state.explorer.selectedId = null;
+  renderExplorer();
+}
+
+function navigateBack() {
+  if (state.explorer.history.length > 0) {
+    state.explorer.currentPath = state.explorer.history.pop();
+    state.explorer.selectedId = null;
+    renderExplorer();
+  }
+}
+
+function navigateUp() {
+  if (state.explorer.currentPath) {
+    state.explorer.history.push(state.explorer.currentPath);
+    const parts = state.explorer.currentPath.split('/');
+    parts.pop();
+    state.explorer.currentPath = parts.join('/');
+    state.explorer.selectedId = null;
+    renderExplorer();
+  }
+}
+
+function toggleSort(col) {
+  if (state.explorer.sortBy === col) {
+    state.explorer.sortAsc = !state.explorer.sortAsc;
+  } else {
+    state.explorer.sortBy = col;
+    state.explorer.sortAsc = true;
+  }
+  renderExplorerTable();
+}
+
+function renderExplorer() {
+  renderBreadcrumbs();
+  renderExplorerTable();
+}
+
+function renderBreadcrumbs() {
+  const client = getCurrentClient();
+  const clientName = client ? client.name : 'Agente';
+  
+  DOM.btnNavBack.disabled = state.explorer.history.length === 0;
+  DOM.btnNavUp.disabled = !state.explorer.currentPath;
+
+  const crumbs = [
+    { label: 'Este equipo', path: '' },
+    { label: 'Downloads', path: '' },
+    { label: 'Agente Ayrton', path: '' },
+    { label: clientName, path: '' }
+  ];
+
+  if (state.explorer.currentPath) {
+    const segments = state.explorer.currentPath.split('/');
+    let accum = '';
+    segments.forEach(seg => {
+      accum = accum ? `${accum}/${seg}` : seg;
+      crumbs.push({ label: seg, path: accum });
+    });
+  }
+
+  DOM.explorerBreadcrumbs.innerHTML = '';
+  crumbs.forEach((c, idx) => {
+    const isLast = idx === crumbs.length - 1;
+    const item = document.createElement('span');
+    item.className = `crumb-item ${isLast ? 'current' : ''}`;
+    item.textContent = c.label;
+    if (!isLast) {
+      item.addEventListener('click', () => navigateToFolder(c.path));
+    }
+    DOM.explorerBreadcrumbs.appendChild(item);
+
+    if (!isLast) {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-separator';
+      sep.textContent = '›';
+      DOM.explorerBreadcrumbs.appendChild(sep);
+    }
+  });
+}
+
+function renderExplorerTable() {
+  const currentPath = state.explorer.currentPath;
+  const prefix = currentPath ? currentPath + '/' : '';
+  const query = state.explorer.searchQuery;
+
+  // Extraer carpetas y archivos directos para el directorio actual
+  const foldersMap = new Map();
+  const directFiles = [];
+
+  state.explorer.allFiles.forEach(f => {
+    const norm = f.filename.replace(/\\/g, '/');
+
+    if (prefix) {
+      if (!norm.startsWith(prefix)) return;
+      const rel = norm.slice(prefix.length);
+      if (rel.includes('/')) {
+        const folderName = rel.split('/')[0];
+        const folderPath = `${currentPath}/${folderName}`;
+        if (!foldersMap.has(folderName)) {
+          foldersMap.set(folderName, { name: folderName, path: folderPath, date: f.created_at, count: 1 });
+        } else {
+          const item = foldersMap.get(folderName);
+          item.count++;
+          if (new Date(f.created_at) > new Date(item.date)) item.date = f.created_at;
+        }
+      } else {
+        directFiles.push({ ...f, displayName: rel });
+      }
+    } else {
+      if (norm.includes('/')) {
+        const folderName = norm.split('/')[0];
+        if (!foldersMap.has(folderName)) {
+          foldersMap.set(folderName, { name: folderName, path: folderName, date: f.created_at, count: 1 });
+        } else {
+          const item = foldersMap.get(folderName);
+          item.count++;
+          if (new Date(f.created_at) > new Date(item.date)) item.date = f.created_at;
+        }
+      } else {
+        directFiles.push({ ...f, displayName: norm });
+      }
+    }
+  });
+
+  let folderItems = Array.from(foldersMap.values()).map(f => ({
+    isFolder: true,
+    id: `dir_${f.path}`,
+    name: f.name,
+    path: f.path,
+    date: f.date,
+    type: 'Carpeta de archivos',
+    size: 0,
+    sizeFormatted: ''
+  }));
+
+  let fileItems = directFiles.map(f => ({
+    isFolder: false,
+    id: f.id,
+    name: f.displayName,
+    fullPath: f.filename,
+    date: f.created_at,
+    type: getFileTypeDescription(f.displayName, false),
+    size: f.size,
+    sizeFormatted: formatFileSize(f.size, false)
+  }));
+
+  // Filtro de búsqueda
+  if (query) {
+    folderItems = folderItems.filter(i => i.name.toLowerCase().includes(query));
+    fileItems = fileItems.filter(i => i.name.toLowerCase().includes(query));
+  }
+
+  // Ordenamiento
+  const { sortBy, sortAsc } = state.explorer;
+  const sortMultiplier = sortAsc ? 1 : -1;
+
+  folderItems.sort((a, b) => a.name.localeCompare(b.name) * sortMultiplier);
+
+  fileItems.sort((a, b) => {
+    if (sortBy === 'name') {
+      return a.name.localeCompare(b.name) * sortMultiplier;
+    } else if (sortBy === 'date') {
+      return (new Date(a.date) - new Date(b.date)) * sortMultiplier;
+    } else if (sortBy === 'type') {
+      return a.type.localeCompare(b.type) * sortMultiplier;
+    } else if (sortBy === 'size') {
+      return (a.size - b.size) * sortMultiplier;
+    }
+    return 0;
+  });
+
+  // En Windows Explorer las carpetas siempre se presentan primero
+  const items = [...folderItems, ...fileItems];
+
+  DOM.explorerTableBody.innerHTML = '';
+
+  if (items.length === 0) {
+    DOM.explorerEmptyState.classList.remove('hidden');
+  } else {
+    DOM.explorerEmptyState.classList.add('hidden');
+  }
+
+  items.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = `explorer-row ${item.isFolder ? 'is-folder' : 'is-file'}`;
+    if (state.explorer.selectedId === item.id) {
+      tr.classList.add('selected');
+    }
+
+    const iconHtml = getExplorerIcon(item.name, item.isFolder);
+    const dateFormatted = formatFileDate(item.date);
+
+    tr.innerHTML = `
+      <td class="col-name">
+        <div class="cell-name-content">
+          <span class="cell-icon">${iconHtml}</span>
+          <span class="cell-filename" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+        </div>
+      </td>
+      <td class="col-date">${dateFormatted}</td>
+      <td class="col-type">${escapeHtml(item.type)}</td>
+      <td class="col-size">${item.sizeFormatted}</td>
+      <td class="col-actions">
+        <div class="row-actions-group">
+          ${item.isFolder ? `
+            <button class="row-action-btn open-folder-btn" title="Abrir carpeta">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+              Abrir
+            </button>
+          ` : `
+            <button class="row-action-btn view-file-btn" title="Ver archivo">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              Ver
+            </button>
+            <a href="/api/files/${item.id}/download" class="row-action-btn" download title="Descargar">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </a>
+            <button class="row-action-btn delete delete-file-btn" title="Eliminar">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+          `}
+        </div>
+      </td>
+    `;
+
+    // Selección al hacer un clic
+    tr.addEventListener('click', (e) => {
+      if (e.target.closest('.row-action-btn') || e.target.closest('a')) return;
+      document.querySelectorAll('.explorer-row.selected').forEach(r => r.classList.remove('selected'));
+      tr.classList.add('selected');
+      state.explorer.selectedId = item.id;
+      DOM.statusbarSelectedInfo.textContent = `1 elemento seleccionado ${item.isFolder ? '' : `(${item.sizeFormatted})`}`;
+    });
+
+    // Doble clic para abrir
+    tr.addEventListener('dblclick', () => {
+      if (item.isFolder) {
+        navigateToFolder(item.path);
+      } else {
+        previewFile(item.id);
+      }
+    });
+
+    if (item.isFolder) {
+      const openBtn = tr.querySelector('.open-folder-btn');
+      if (openBtn) openBtn.addEventListener('click', () => navigateToFolder(item.path));
+    } else {
+      const viewBtn = tr.querySelector('.view-file-btn');
+      if (viewBtn) viewBtn.addEventListener('click', () => previewFile(item.id));
+      const delBtn = tr.querySelector('.delete-file-btn');
+      if (delBtn) delBtn.addEventListener('click', () => deleteFile(item.id, item.name));
+    }
+
+    DOM.explorerTableBody.appendChild(tr);
+  });
+
+  // Actualizar status bar
+  DOM.statusbarItemsCount.textContent = `${items.length} elemento${items.length === 1 ? '' : 's'}`;
+  if (!state.explorer.selectedId) {
+    DOM.statusbarSelectedInfo.textContent = '';
+  }
+}
+
+function getExplorerIcon(name, isFolder) {
+  if (isFolder) {
+    return `<svg viewBox="0 0 24 24" width="18" height="18" fill="#facc15" stroke="#ca8a04" stroke-width="1"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+  }
+  const ext = name.split('.').pop().toLowerCase();
+  switch (ext) {
+    case 'html':
+    case 'htm':
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#f97316" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polyline points="10 13 8 15 10 17"></polyline><polyline points="14 13 16 15 14 17"></polyline></svg>`;
+    case 'css':
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg>`;
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#eab308" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M10 12v4a2 2 0 0 1-2 2"></path></svg>`;
+    case 'astro':
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#ec4899" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><polygon points="12 11 13 14 16 14 13.5 16 14.5 19 12 17 9.5 19 10.5 16 8 14 11 14 12 11"></polygon></svg>`;
+    case 'php':
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#818cf8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><circle cx="12" cy="14" r="2"></circle></svg>`;
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'webp':
+    case 'svg':
+    case 'gif':
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#10b981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+    case 'json':
+    case 'md':
+    case 'txt':
+    case 'xml':
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>`;
+    default:
+      return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#64748b" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>`;
+  }
+}
+
+function getFileTypeDescription(name, isFolder) {
+  if (isFolder) return 'Carpeta de archivos';
+  const ext = name.split('.').pop().toLowerCase();
+  switch (ext) {
+    case 'html':
+    case 'htm':
+      return 'Documento HTML';
+    case 'css':
+      return 'Hoja de estilo en cascada';
+    case 'js':
+    case 'mjs':
+    case 'cjs':
+      return 'Archivo JavaScript';
+    case 'ts':
+      return 'Archivo TypeScript';
+    case 'json':
+      return 'Archivo JSON';
+    case 'php':
+      return 'Script PHP';
+    case 'py':
+      return 'Script de Python';
+    case 'astro':
+      return 'Componente Astro';
+    case 'md':
+      return 'Documento Markdown';
+    case 'txt':
+      return 'Documento de texto';
+    case 'png':
+      return 'Imagen PNG';
+    case 'jpg':
+    case 'jpeg':
+      return 'Imagen JPEG';
+    case 'webp':
+      return 'Imagen WebP';
+    case 'svg':
+      return 'Gráfico vectorial escalable';
+    case 'zip':
+      return 'Carpeta comprimida (en zip)';
+    case 'pdf':
+      return 'Documento PDF';
+    default:
+      return `Archivo ${ext.toUpperCase()}`;
+  }
+}
+
+function formatFileDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const day = d.getDate();
+  const month = d.getMonth() + 1;
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function formatFileSize(bytes, isFolder) {
+  if (isFolder || bytes === undefined || bytes === null || bytes === 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${Math.ceil(kb)} KB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
 }
 
 async function handleFileUpload(filesList) {
@@ -639,7 +1081,7 @@ async function handleFileUpload(filesList) {
   if (!client) return;
 
   const total = filesList.length;
-  DOM.filesTotalCount.textContent = `Subiendo ${total} archivo${total === 1 ? '' : 's'}...`;
+  DOM.explorerSyncStatus.textContent = `Subiendo ${total} archivo${total === 1 ? '' : 's'}...`;
 
   for (let i = 0; i < total; i++) {
     const file = filesList[i];
@@ -654,76 +1096,19 @@ async function handleFileUpload(filesList) {
         method: 'POST',
         body: formData
       });
-      DOM.filesTotalCount.textContent = `Procesando ${i + 1}/${total}...`;
+      DOM.explorerSyncStatus.textContent = `Subido ${i + 1}/${total}`;
     } catch (err) {
       console.error(`Error al subir ${file.name}:`, err);
     }
   }
 
+  setTimeout(() => {
+    DOM.explorerSyncStatus.textContent = '';
+  }, 2500);
+
   DOM.fileInputElement.value = '';
   DOM.folderInputElement.value = '';
   await loadClientFiles(client.id);
-}
-
-function renderFilesList(files) {
-  DOM.filesList.innerHTML = '';
-  if (files.length === 0) {
-    DOM.filesList.innerHTML = '<p style="color:#6b7280; font-size:13px; text-align:center; padding:16px;">Aún no has subido archivos a este agente.</p>';
-    return;
-  }
-
-  files.forEach(f => {
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    const date = new Date(f.created_at).toLocaleDateString();
-    const sizeKb = (f.size / 1024).toFixed(1);
-
-    item.innerHTML = `
-      <div class="file-item-left">
-        <div class="file-item-icon">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-          </svg>
-        </div>
-        <div class="file-item-info">
-          <span class="file-item-name" title="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</span>
-          <div class="file-item-meta">
-            <span>${sizeKb} KB</span>
-            <span>&bull;</span>
-            <span>${date}</span>
-          </div>
-        </div>
-      </div>
-      <div class="file-item-actions">
-        <button class="file-btn view-btn" title="Ver contenido">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-          </svg>
-          Ver
-        </button>
-        <a href="/api/files/${f.id}/download" class="file-btn" download title="Descargar">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-        </a>
-        <button class="file-btn delete delete-btn" title="Eliminar archivo">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          </svg>
-        </button>
-      </div>
-    `;
-
-    item.querySelector('.view-btn').addEventListener('click', () => previewFile(f.id));
-    item.querySelector('.delete-btn').addEventListener('click', () => deleteFile(f.id, f.filename));
-
-    DOM.filesList.appendChild(item);
-  });
 }
 
 async function previewFile(fileId) {

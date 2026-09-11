@@ -732,6 +732,9 @@ body {
 /* ==========================================
    GESTOR DE ARCHIVOS POR CLIENTE
    ========================================== */
+/* ==========================================
+   EXPLORADOR DE ARCHIVOS ESTILO WINDOWS
+   ========================================== */
 .badge-count {
   background-color: #2e3442;
   color: #93c5fd;
@@ -741,183 +744,498 @@ body {
   border-radius: 10px;
 }
 
-.files-drawer-width {
-  width: 520px;
-}
-
-.upload-zone {
-  border: 2px dashed #2f3442;
-  background: #181a20;
+.explorer-window {
+  width: 95vw;
+  max-width: 1050px;
+  height: 82vh;
+  max-height: 850px;
+  background-color: #1e2026;
+  border: 1px solid #333846;
   border-radius: 10px;
-  padding: 24px 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 20px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: explorerFadeIn 0.18s ease-out;
 }
 
-.upload-zone:hover, .upload-zone.dragover {
-  border-color: var(--accent-blue);
-  background: #1e222c;
+@keyframes explorerFadeIn {
+  from { transform: scale(0.97); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
-.upload-zone svg {
-  color: var(--accent-blue);
-  margin-bottom: 4px;
-}
-
-.upload-zone p {
-  font-size: 13.5px;
-  color: var(--text-primary);
-}
-
-.upload-zone span {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.upload-buttons-group {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.upload-choice-btn {
-  background: #252834;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 7px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.upload-choice-btn:hover {
-  background: var(--accent-blue);
-  color: white;
-  border-color: var(--accent-hover);
-}
-
-.files-header-section {
+/* 1. Barra de título estilo Windows */
+.explorer-titlebar {
+  height: 38px;
+  background-color: #17181f;
+  border-bottom: 1px solid #282b36;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  user-select: none;
 }
 
-.files-header-section h4 {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.count-tag {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.files-list {
+.explorer-title-left {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #cbd5e1;
 }
 
-.file-item {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px 14px;
+.explorer-window-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  transition: border-color 0.15s;
 }
 
-.file-item:hover {
-  border-color: #3b4252;
-}
-
-.file-item-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.file-item-icon {
-  width: 32px;
-  height: 32px;
-  background: #232733;
-  border-radius: 6px;
+.win-btn {
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-blue);
-  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.1s;
 }
 
-.file-item-info {
+.win-btn:hover {
+  background-color: #2a2e3b;
+  color: white;
+}
+
+.win-btn.win-close:hover {
+  background-color: #e81123;
+  color: white;
+}
+
+/* 2. Ribbon / Barra de comandos */
+.explorer-toolbar {
+  background-color: #21242d;
+  border-bottom: 1px solid #2b2f3b;
+  padding: 8px 14px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.file-item-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 250px;
-}
-
-.file-item-meta {
-  font-size: 11px;
-  color: var(--text-muted);
+.toolbar-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.file-item-actions {
+.explorer-tool-btn {
+  background-color: #2b2f3b;
+  border: 1px solid #3b4050;
+  color: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.explorer-tool-btn:hover {
+  background-color: #383d4c;
+  border-color: #4b5266;
+  color: #ffffff;
+}
+
+.toolbar-status {
+  font-size: 12px;
+  color: #38bdf8;
+  font-weight: 500;
+}
+
+/* 3. Barra de navegación, Breadcrumbs y Búsqueda */
+.explorer-nav-bar {
+  background-color: #1a1c22;
+  border-bottom: 1px solid #282c37;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.nav-arrow-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.nav-arrow-btn:hover:not(:disabled) {
+  background-color: #2d3240;
+  color: #ffffff;
+}
+
+.nav-arrow-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.address-bar-container {
+  flex: 1;
+  background-color: #121317;
+  border: 1px solid #2f3442;
+  border-radius: 4px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.address-bar-icon {
+  display: flex;
+  align-items: center;
+  color: #facc15;
+}
+
+.breadcrumbs-list {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.breadcrumbs-list::-webkit-scrollbar {
+  display: none;
+}
+
+.crumb-item {
+  color: #94a3b8;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.crumb-item:hover {
+  background-color: #252834;
+  color: #e2e8f0;
+}
+
+.crumb-item.current {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.crumb-separator {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.explorer-search-box {
+  width: 240px;
+  background-color: #121317;
+  border: 1px solid #2f3442;
+  border-radius: 4px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  color: #94a3b8;
+}
+
+.explorer-search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f1f5f9;
+  font-size: 12.5px;
+  width: 100%;
+}
+
+/* 4. Cuerpo: Sidebar izquierdo + Tabla derecha */
+.explorer-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.explorer-sidebar-nav {
+  width: 200px;
+  background-color: #17181f;
+  border-right: 1px solid #262a35;
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  user-select: none;
+  overflow-y: auto;
+}
+
+.sidebar-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  padding: 4px 10px;
+  margin-bottom: 2px;
+}
+
+.quick-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.quick-link:hover {
+  background-color: #232733;
+}
+
+.quick-link.active {
+  background-color: #2a3142;
+  color: #60a5fa;
+  font-weight: 500;
+}
+
+.quick-link.sub-link {
+  padding-left: 22px;
+}
+
+.quick-link.sub-sub-link {
+  padding-left: 34px;
+}
+
+/* Tabla de archivos y carpetas */
+.explorer-table-container {
+  flex: 1;
+  background-color: #1a1c22;
+  overflow-y: auto;
+  position: relative;
+}
+
+.explorer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  user-select: none;
+}
+
+.explorer-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #1a1c22;
+}
+
+.explorer-table th {
+  height: 32px;
+  border-bottom: 1px solid #2d3240;
+  border-right: 1px solid #232733;
+  padding: 0 10px;
+  text-align: left;
+  font-weight: 500;
+  color: #94a3b8;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.explorer-table th:hover {
+  background-color: #222631;
+  color: #cbd5e1;
+}
+
+.explorer-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  white-space: nowrap;
+  color: #e2e8f0;
+}
+
+.explorer-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.explorer-row:hover {
+  background-color: #242937;
+}
+
+.explorer-row.selected {
+  background-color: #27354d !important;
+  color: #93c5fd;
+}
+
+.col-name {
+  width: 45%;
+  min-width: 220px;
+}
+
+.col-date {
+  width: 20%;
+  min-width: 140px;
+  color: #94a3b8;
+}
+
+.col-type {
+  width: 20%;
+  min-width: 130px;
+  color: #94a3b8;
+}
+
+.col-size {
+  width: 10%;
+  min-width: 80px;
+  text-align: right;
+  color: #94a3b8;
+}
+
+.col-actions {
+  width: 100px;
+  text-align: right;
+}
+
+.cell-name-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cell-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cell-filename {
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 380px;
+}
+
+.explorer-row.is-folder .cell-filename {
+  font-weight: 500;
+  color: #f8fafc;
+}
+
+.row-actions-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.row-action-btn {
+  background: transparent;
+  border: 1px solid #373d4d;
+  color: #94a3b8;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.12s;
+}
+
+.row-action-btn:hover {
+  background-color: #2b3140;
+  color: #ffffff;
+  border-color: #4b5368;
+}
+
+.row-action-btn.delete:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.explorer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #64748b;
+  gap: 8px;
+}
+
+.explorer-empty p {
+  font-size: 14px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.explorer-empty span {
+  font-size: 12px;
+}
+
+/* 5. Barra de estado inferior */
+.explorer-statusbar {
+  height: 28px;
+  background-color: #17181f;
+  border-top: 1px solid #282c37;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.statusbar-item {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.file-btn {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  padding: 5px 8px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  cursor: pointer;
+.statusbar-right {
   display: flex;
   align-items: center;
-  gap: 4px;
-  transition: all 0.15s;
 }
 
-.file-btn:hover {
-  background: #272b36;
-  color: var(--text-primary);
-}
-
-.file-btn.delete:hover {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: #ef4444;
-  color: #ef4444;
+.statusbar-view-icon {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  color: #60a5fa;
 }
 
 /* MODAL VISOR DE ARCHIVO */
