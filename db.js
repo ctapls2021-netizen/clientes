@@ -62,28 +62,18 @@ db.exec(`
   );
 `);
 
-// Cargar clientes iniciales de ejemplo si la tabla está vacía
-const clientCountStmt = db.prepare('SELECT COUNT(*) as count FROM clients');
-const { count } = clientCountStmt.get();
-
-if (count === 0) {
-  const insertClient = db.prepare(`
-    INSERT INTO clients (id, name, domain, stack, system_prompt)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  const initialClients = [
-    {
-      id: 'agente-exodus',
-      name: 'Agente Exodus',
-      domain: 'https://exodusremodeling.com',
-      stack: 'Astro / Tailwind / WordPress',
-      system_prompt: 'Eres el Agente Webmaster de Exodus Remodeling (Los Angeles County). Experto en diseño de landing pages de alta conversión para Backyard Remodeling, Piscinas, Spas y Hardscaping.'
-    },
-    {
-      id: 'mulholland',
-      name: 'Mulholland',
-      domain: 'https://mulhollandbrand.com',
+const initialClients = [
+  {
+    id: 'agente-exodus',
+    name: 'Agente Exodus',
+    domain: 'https://exodusremodeling.com',
+    stack: 'Astro / Tailwind / WordPress',
+    system_prompt: 'Eres el Agente Webmaster de Exodus Remodeling (Los Angeles County). Experto en diseño de landing pages de alta conversión para Backyard Remodeling, Piscinas, Spas y Hardscaping.'
+  },
+  {
+    id: 'mulholland',
+    name: 'Mulholland',
+    domain: 'https://mulhollandbrand.com',
       stack: 'WordPress / Astro / PHP',
       system_prompt: 'Eres el Agente Webmaster de Mulholland Brand. Administras pergolas, portones, rejas y cerramientos de aluminio de alta gama. Asegura velocidad de carga, shortcodes válidos y diseño responsive.'
     },
@@ -236,9 +226,19 @@ if (count === 0) {
     }
   ];
 
-  for (const client of initialClients) {
-    insertClient.run(client.id, client.name, client.domain, client.stack, client.system_prompt);
-  }
+// Asegurar que todos los 23 agentes estén siempre registrados y actualizados en la base de datos
+const upsertClient = db.prepare(`
+  INSERT INTO clients (id, name, domain, stack, system_prompt)
+  VALUES (?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    name = excluded.name,
+    domain = excluded.domain,
+    stack = excluded.stack,
+    system_prompt = excluded.system_prompt
+`);
+
+for (const client of initialClients) {
+  upsertClient.run(client.id, client.name, client.domain, client.stack, client.system_prompt);
 }
 
 export const Clients = {
