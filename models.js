@@ -128,21 +128,49 @@ async function* streamDevFallback(modelId, client, prompt) {
 }
 
 /**
- * Orquestador principal de streaming exclusivo de Gemini
+ * Orquestador principal de streaming exclusivo de Gemini con Auto-Fallback ante alta demanda (503)
  */
 export async function* streamChat({ modelId, client, messages, prompt }) {
   const geminiKey = process.env.GEMINI_API_KEY;
-  const targetModel = modelId || 'gemini-3.6-flash';
+  const initialModel = modelId || 'gemini-3.6-flash';
 
-  try {
-    if (geminiKey) {
-      yield* streamGemini(geminiKey, targetModel, client.system_prompt, messages);
-      return;
-    }
-
-    // Si aún no está la API Key, usar fallback ilustrativo
-    yield* streamDevFallback(targetModel, client, prompt);
-  } catch (error) {
-    yield { text: `\n\n> [!WARNING]\n> **Error al consultar Gemini (${targetModel}):** ${error.message}\n` };
+  if (!geminiKey) {
+    yield* streamDevFallback(initialModel, client, prompt);
+    return;
   }
+
+  // Lista de modelos alternativos en caso de sobrecarga temporal (503) en los servidores de Google
+  const fallbackModels = [
+    initialModel,
+    'gemini-3.7-flash',
+    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-1.5-flash'
+  ].filter((v, i, a) => a.indexOf(v) === i); // deduplicar
+
+  let lastError = null;
+
+  for (const currentModel of fallbackModels) {
+    try {
+      if (currentModel !== initialModel) {
+        yield { thought: `El modelo ${initialModel} reportó alta demanda temporal en Google. Reintentando automáticamente con ${currentModel}...` };
+      }
+      yield* streamGemini(geminiKey, currentModel, client.system_prompt, messages);
+      return; // Éxito, salir
+    } catch (error) {
+      lastError = error;
+      const isOverloaded = error.message.includes('503') || 
+                           error.message.includes('high demand') || 
+                           error.message.includes('UNAVAILABLE') ||
+                           error.message.includes('RESOURCE_EXHAUSTED');
+      
+      // Si el error es de sobrecarga temporal, probar con el siguiente modelo de la lista
+      if (isOverloaded && currentModel !== fallbackModels[fallbackModels.length - 1]) {
+        continue;
+      }
+      break;
+    }
+  }
+
+  yield { text: `\n\n> [!WARNING]\n> **Error al consultar Gemini (${initialModel}):** ${lastError?.message || 'Servidor no disponible'}\n` };
 }
