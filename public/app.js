@@ -51,7 +51,23 @@ const DOM = {
   btnOpenActions: document.getElementById('btn-open-actions'),
   actionsDrawer: document.getElementById('actions-drawer'),
   btnCloseActions: document.getElementById('btn-close-actions'),
-  actionsList: document.getElementById('actions-list')
+  actionsList: document.getElementById('actions-list'),
+
+  // Archivos
+  btnOpenFiles: document.getElementById('btn-open-files'),
+  clientFilesBadge: document.getElementById('client-files-badge'),
+  filesDrawer: document.getElementById('files-drawer'),
+  btnCloseFiles: document.getElementById('btn-close-files'),
+  drawerClientNameFiles: document.getElementById('drawer-client-name-files'),
+  uploadZone: document.getElementById('upload-zone'),
+  fileInputElement: document.getElementById('file-input-element'),
+  filesTotalCount: document.getElementById('files-total-count'),
+  filesList: document.getElementById('files-list'),
+  fileViewerModal: document.getElementById('file-viewer-modal'),
+  btnCloseViewer: document.getElementById('btn-close-viewer'),
+  viewerFilename: document.getElementById('viewer-filename'),
+  viewerCodeContent: document.getElementById('viewer-code-content'),
+  viewerDownloadBtn: document.getElementById('viewer-download-btn')
 };
 
 // ==========================================
@@ -112,6 +128,41 @@ function setupEventListeners() {
   // Drawer de acciones
   DOM.btnOpenActions.addEventListener('click', openActionsDrawer);
   DOM.btnCloseActions.addEventListener('click', closeActionsDrawer);
+
+  // Drawer de Archivos y Subida
+  DOM.btnOpenFiles.addEventListener('click', openFilesDrawer);
+  DOM.btnCloseFiles.addEventListener('click', closeFilesDrawer);
+  DOM.btnCloseViewer.addEventListener('click', () => DOM.fileViewerModal.classList.add('hidden'));
+
+  // Upload handlers (click & drag and drop)
+  DOM.uploadZone.addEventListener('click', () => DOM.fileInputElement.click());
+  DOM.fileInputElement.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleFileUpload(e.target.files);
+    }
+  });
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    DOM.uploadZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      DOM.uploadZone.classList.add('dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    DOM.uploadZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      DOM.uploadZone.classList.remove('dragover');
+    });
+  });
+
+  DOM.uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    DOM.uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      handleFileUpload(e.dataTransfer.files);
+    }
+  });
 }
 
 // ==========================================
@@ -231,6 +282,9 @@ async function selectClient(clientId) {
 
   // Cargar conversaciones previas del cliente
   await loadClientConversations(clientId);
+  
+  // Cargar archivos del cliente
+  await loadClientFiles(clientId);
 }
 
 async function loadClientConversations(clientId) {
@@ -530,6 +584,151 @@ async function openActionsDrawer() {
 
 function closeActionsDrawer() {
   DOM.actionsDrawer.classList.add('hidden');
+}
+
+// ==========================================
+// GESTOR DE ARCHIVOS POR CLIENTE
+// ==========================================
+async function loadClientFiles(clientId) {
+  try {
+    const res = await fetch(`/api/clients/${clientId}/files`);
+    const files = await res.json();
+    DOM.clientFilesBadge.textContent = files.length;
+    DOM.filesTotalCount.textContent = `${files.length} archivo${files.length === 1 ? '' : 's'}`;
+    renderFilesList(files);
+    return files;
+  } catch (err) {
+    console.error('Error cargando archivos:', err);
+    return [];
+  }
+}
+
+async function openFilesDrawer() {
+  const client = getCurrentClient();
+  if (!client) return;
+
+  DOM.drawerClientNameFiles.textContent = client.name;
+  DOM.filesDrawer.classList.remove('hidden');
+  await loadClientFiles(client.id);
+}
+
+function closeFilesDrawer() {
+  DOM.filesDrawer.classList.add('hidden');
+}
+
+async function handleFileUpload(filesList) {
+  const client = getCurrentClient();
+  if (!client) return;
+
+  for (const file of filesList) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      await fetch(`/api/clients/${client.id}/files`, {
+        method: 'POST',
+        body: formData
+      });
+    } catch (err) {
+      alert(`Error al subir ${file.name}: ${err.message}`);
+    }
+  }
+
+  DOM.fileInputElement.value = '';
+  await loadClientFiles(client.id);
+}
+
+function renderFilesList(files) {
+  DOM.filesList.innerHTML = '';
+  if (files.length === 0) {
+    DOM.filesList.innerHTML = '<p style="color:#6b7280; font-size:13px; text-align:center; padding:16px;">Aún no has subido archivos a este agente.</p>';
+    return;
+  }
+
+  files.forEach(f => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    const date = new Date(f.created_at).toLocaleDateString();
+    const sizeKb = (f.size / 1024).toFixed(1);
+
+    item.innerHTML = `
+      <div class="file-item-left">
+        <div class="file-item-icon">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+        </div>
+        <div class="file-item-info">
+          <span class="file-item-name" title="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</span>
+          <div class="file-item-meta">
+            <span>${sizeKb} KB</span>
+            <span>&bull;</span>
+            <span>${date}</span>
+          </div>
+        </div>
+      </div>
+      <div class="file-item-actions">
+        <button class="file-btn view-btn" title="Ver contenido">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          Ver
+        </button>
+        <a href="/api/files/${f.id}/download" class="file-btn" download title="Descargar">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </a>
+        <button class="file-btn delete delete-btn" title="Eliminar archivo">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+    `;
+
+    item.querySelector('.view-btn').addEventListener('click', () => previewFile(f.id));
+    item.querySelector('.delete-btn').addEventListener('click', () => deleteFile(f.id, f.filename));
+
+    DOM.filesList.appendChild(item);
+  });
+}
+
+async function previewFile(fileId) {
+  try {
+    const res = await fetch(`/api/files/${fileId}/content`);
+    const data = await res.json();
+
+    DOM.viewerFilename.textContent = data.filename;
+    DOM.viewerDownloadBtn.href = `/api/files/${fileId}/download`;
+
+    if (data.isText) {
+      DOM.viewerCodeContent.textContent = data.content;
+    } else {
+      DOM.viewerCodeContent.textContent = `[Archivo binario / multimedia: ${data.filename} (${(data.size / 1024).toFixed(1)} KB)]\nPuedes descargarlo usando el botón superior.`;
+    }
+
+    DOM.fileViewerModal.classList.remove('hidden');
+  } catch (err) {
+    alert('Error abriendo archivo: ' + err.message);
+  }
+}
+
+async function deleteFile(fileId, filename) {
+  if (!confirm(`¿Estás seguro de eliminar "${filename}"?`)) return;
+
+  const client = getCurrentClient();
+  try {
+    await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
+    if (client) await loadClientFiles(client.id);
+  } catch (err) {
+    alert('Error eliminando archivo: ' + err.message);
+  }
 }
 
 // ==========================================

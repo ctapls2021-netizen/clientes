@@ -3,7 +3,9 @@ import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { Clients, Conversations, Messages, Actions } from './db.js';
+import fs from 'node:fs';
+import multer from 'multer';
+import { Clients, Conversations, Messages, Actions, ClientFiles } from './db.js';
 import { AVAILABLE_MODELS, streamChat } from './models.js';
 import { WebmasterTools } from './tools.js';
 
@@ -18,6 +20,21 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Configuración de almacenamiento de archivos por cliente
+const uploadsDir = path.join(__dirname, 'data', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `${uniqueSuffix}-${file.originalname}`);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } }); // hasta 25MB
 
 // ==========================================
 // RUTAS API
@@ -94,6 +111,101 @@ app.post('/api/clients/:id/tools/audit', async (req, res) => {
 });
 
 // ==========================================
+// ARCHIVOS POR CLIENTE / AGENTE
+// ==========================================
+
+// Listar archivos de un cliente
+app.get('/api/clients/:id/files', (req, res) => {
+  const files = ClientFiles.getByClient(req.params.id);
+  res.json(files);
+});
+
+// Subir archivo a un cliente
+app.post('/api/clients/:id/files', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se envió ningún archivo.' });
+    }
+    const client = Clients.getById(req.params.id);
+    if (!client) {
+      return res.status(404).json({ error: 'Cliente no encontrado.' });
+    }
+
+    const newFile = ClientFiles.create({
+      clientId: client.id,
+      filename: req.file.originalname,
+      storedName: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+
+    Actions.create({
+      clientId: client.id,
+      type: 'file_upload',
+      description: `Archivo subido: ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`,
+      status: 'success',
+      details: { filename: req.file.originalname, size: req.file.size }
+    });
+
+    res.status(201).json(newFile);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Ver contenido de un archivo (texto / código)
+app.get('/api/files/:id/content', (req, res) => {
+  const file = ClientFiles.getById(req.params.id);
+  if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  const filePath = path.join(uploadsDir, file.stored_name);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'El archivo físico no existe.' });
+  }
+
+  const isText = file.mimetype?.startsWith('text/') || 
+                 /\.(txt|md|js|json|css|html|php|astro|ts|py|sql|xml|env|yml|yaml)$/i.test(file.filename);
+
+  if (isText) {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    res.json({ filename: file.filename, content, isText: true, size: file.size });
+  } else {
+    res.json({ filename: file.filename, content: null, isText: false, size: file.size });
+  }
+});
+
+// Descargar archivo
+app.get('/api/files/:id/download', (req, res) => {
+  const file = ClientFiles.getById(req.params.id);
+  if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  const filePath = path.join(uploadsDir, file.stored_name);
+  res.download(filePath, file.filename);
+});
+
+// Eliminar archivo
+app.delete('/api/files/:id', (req, res) => {
+  const file = ClientFiles.getById(req.params.id);
+  if (!file) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  const filePath = path.join(uploadsDir, file.stored_name);
+  if (fs.existsSync(filePath)) {
+    try { fs.unlinkSync(filePath); } catch (e) {}
+  }
+
+  ClientFiles.delete(req.params.id);
+
+  Actions.create({
+    clientId: file.client_id,
+    type: 'file_delete',
+    description: `Archivo eliminado: ${file.filename}`,
+    status: 'success'
+  });
+
+  res.json({ success: true, message: 'Archivo eliminado' });
+});
+
+// ==========================================
 // CHAT CON STREAMING (SSE - Server Sent Events)
 // ==========================================
 app.post('/api/chat', async (req, res) => {
@@ -134,13 +246,23 @@ app.post('/api/chat', async (req, res) => {
   // Obtener mensajes previos para contexto
   const history = Messages.getByConversation(activeConvId);
 
+  // Enriquecer el contexto del agente con la lista de archivos subidos
+  const clientFiles = ClientFiles.getByClient(clientId);
+  let enhancedPrompt = client.system_prompt || '';
+  if (clientFiles.length > 0) {
+    enhancedPrompt += '\n\nArchivos y recursos disponibles en este sitio:\n' + 
+      clientFiles.map(f => `- ${f.filename} (${(f.size / 1024).toFixed(1)} KB)`).join('\n') +
+      '\nTienes conocimiento pleno de que el usuario ha subido estos archivos.';
+  }
+  const activeClient = { ...client, system_prompt: enhancedPrompt };
+
   let fullAssistantText = '';
   let fullThoughtText = '';
 
   try {
     for await (const chunk of streamChat({
-      modelId: modelId || 'gemini-3.8-flash',
-      client,
+      modelId: modelId || 'gemini-3.6-flash',
+      client: activeClient,
       messages: history,
       prompt
     })) {

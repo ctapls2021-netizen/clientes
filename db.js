@@ -55,8 +55,18 @@ db.exec(`
     client_id TEXT NOT NULL,
     type TEXT NOT NULL,
     description TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'success',
     details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(client_id) REFERENCES clients(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS client_files (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    stored_name TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    mimetype TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(client_id) REFERENCES clients(id) ON DELETE CASCADE
   );
@@ -313,6 +323,30 @@ export const Actions = {
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(id, clientId, type, description, status, details ? JSON.stringify(details) : null);
     return db.prepare('SELECT * FROM actions WHERE id = ?').get(id);
+  }
+};
+
+export const ClientFiles = {
+  getByClient: (clientId) => {
+    return db.prepare('SELECT * FROM client_files WHERE client_id = ? ORDER BY created_at DESC').all(clientId);
+  },
+  getById: (id) => {
+    return db.prepare('SELECT * FROM client_files WHERE id = ?').get(id);
+  },
+  create: ({ clientId, filename, storedName, size, mimetype }) => {
+    const id = `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    db.prepare(`
+      INSERT INTO client_files (id, client_id, filename, stored_name, size, mimetype)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, clientId, filename, storedName, size, mimetype || 'text/plain');
+    return ClientFiles.getById(id);
+  },
+  delete: (id) => {
+    const file = ClientFiles.getById(id);
+    if (file) {
+      db.prepare('DELETE FROM client_files WHERE id = ?').run(id);
+    }
+    return file;
   }
 };
 

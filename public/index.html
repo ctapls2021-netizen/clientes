@@ -74,6 +74,13 @@
             </svg>
             <span>Auditar Sitio</span>
           </button>
+          <button id="btn-open-files" class="action-btn secondary" title="Archivos y recursos del cliente">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Archivos</span>
+            <span id="client-files-badge" class="badge-count">0</span>
+          </button>
           <button id="btn-edit-client" class="action-btn secondary" title="Editar datos del cliente">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -193,6 +200,68 @@
         <div id="actions-list" class="actions-list">
           <!-- Renderizado de logs de auditoría -->
         </div>
+      </div>
+  <!-- DRAWER: ARCHIVOS DEL CLIENTE -->
+  <div id="files-drawer" class="drawer hidden">
+    <div class="drawer-overlay"></div>
+    <div class="drawer-content files-drawer-width">
+      <div class="drawer-header">
+        <div>
+          <h3>Archivos del Agente</h3>
+          <span id="drawer-client-name-files" style="font-size:12px; color:var(--text-muted);"></span>
+        </div>
+        <button class="modal-close" id="btn-close-files">&times;</button>
+      </div>
+      <div class="drawer-body">
+        <!-- Zona de Carga / Drag & Drop -->
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input-element" style="display:none;" multiple>
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <p><strong>Haz clic o arrastra archivos aquí</strong></p>
+          <span>HTML, CSS, JS, PHP, TXT, JSON, MD, PDF o Imágenes</span>
+        </div>
+
+        <div class="files-header-section">
+          <h4>Archivos subidos</h4>
+          <span id="files-total-count" class="count-tag">0 archivos</span>
+        </div>
+
+        <div id="files-list" class="files-list">
+          <!-- Renderizado dinámico de archivos -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: VISOR DE CÓDIGO / CONTENIDO -->
+  <div id="file-viewer-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content file-viewer-content">
+      <div class="modal-header">
+        <div class="file-viewer-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <span id="viewer-filename">archivo.txt</span>
+        </div>
+        <div class="viewer-actions">
+          <a id="viewer-download-btn" href="#" class="icon-btn" download title="Descargar">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </a>
+          <button class="modal-close" id="btn-close-viewer">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body file-viewer-body">
+        <pre><code id="viewer-code-content"></code></pre>
       </div>
     </div>
   </div>
