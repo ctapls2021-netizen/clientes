@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  webmaster-platform:
+    build: .
+    container_name: webmaster-agent-platform
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      # Volumen persistente para la base de datos de clientes, chats e historial ilimitado
+      - ./data:/app/data

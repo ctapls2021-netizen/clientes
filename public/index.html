@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Webmaster Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          <span class="logo-text">Webmaster AI</span>
+        </div>
+        <button id="btn-new-client" class="icon-btn" title="Agregar Nuevo Cliente">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">PROYECTOS / SITIOS WEB</div>
+        <div id="clients-list" class="clients-list">
+          <!-- Renderizado dinámico de clientes -->
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div id="api-status-badge" class="status-indicator">
+          <span class="dot warning"></span>
+          <span id="api-status-text">Verificando Gemini...</span>
+        </div>
+        <button id="btn-open-actions" class="sidebar-btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>Historial de Acciones</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="main-content">
+      <!-- HEADER -->
+      <header class="top-nav">
+        <div class="active-client-info">
+          <h2 id="current-client-name">Selecciona un Cliente</h2>
+          <a id="current-client-domain" href="#" target="_blank" class="domain-badge" style="display:none;">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+            <span id="current-domain-text"></span>
+          </a>
+          <span id="current-client-stack" class="stack-badge" style="display:none;"></span>
+        </div>
+
+        <div class="nav-actions">
+          <button id="btn-audit-site" class="action-btn secondary" title="Auditar disponibilidad y SSL">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <span>Auditar Sitio</span>
+          </button>
+          <button id="btn-edit-client" class="action-btn secondary" title="Editar datos del cliente">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            <span>Configuración</span>
+          </button>
+          <button id="btn-new-chat" class="action-btn primary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Nueva Conversación</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- CHAT CONVERSATION CANVAS -->
+      <div id="chat-canvas" class="chat-canvas">
+        <div id="messages-container" class="messages-container">
+          <!-- Mensajes dinámicos -->
+        </div>
+      </div>
+
+      <!-- PROMPT / INPUT BAR -->
+      <div class="input-container">
+        <form id="chat-form" class="chat-box">
+          <div class="chat-box-header">
+            <!-- Selector de Modelo de Gemini -->
+            <div class="model-picker-container">
+              <button type="button" id="btn-model-selector" class="model-selector-btn">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+                <span id="selected-model-name">Gemini 2.0 Flash</span>
+                <span class="badge-speed" id="selected-model-badge">Fast</span>
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+
+              <div id="model-dropdown" class="model-dropdown hidden">
+                <div class="dropdown-header">Modelos de Google Gemini</div>
+                <div id="model-options" class="model-options"></div>
+              </div>
+            </div>
+
+            <div class="system-prompt-indicator" id="system-prompt-pill" title="Reglas y contexto activo del cliente">
+              <span class="bullet"></span> Webmaster Context Activo
+            </div>
+          </div>
+
+          <textarea 
+            id="prompt-input" 
+            placeholder="Pregúntale al Agente Webmaster o pídele solucionar algo en el sitio..." 
+            rows="2"
+            required
+          ></textarea>
+
+          <div class="chat-box-footer">
+            <div class="hint-text">Enter para enviar &bull; Shift + Enter para salto de línea</div>
+            <button type="submit" id="btn-send" class="btn-send" title="Enviar instrucción">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: CLIENTE (NUEVO / EDITAR) -->
+  <div id="client-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-client-title">Configuración del Cliente</h3>
+        <button class="modal-close" id="btn-close-client-modal">&times;</button>
+      </div>
+      <form id="client-form" class="modal-body">
+        <input type="hidden" id="form-client-id">
+        <div class="form-group">
+          <label>Nombre del Cliente / Proyecto</label>
+          <input type="text" id="form-client-name" placeholder="Ej: Agente Exodus" required>
+        </div>
+        <div class="form-group">
+          <label>Dominio Web (URL)</label>
+          <input type="url" id="form-client-domain" placeholder="https://ejemplo.com">
+        </div>
+        <div class="form-group">
+          <label>Stack Tecnológico</label>
+          <input type="text" id="form-client-stack" placeholder="Ej: WordPress / Astro / Elementor">
+        </div>
+        <div class="form-group">
+          <label>Directivas & Reglas de Webmaster (System Prompt)</label>
+          <textarea id="form-client-prompt" rows="5" placeholder="Define el rol del agente, estilos, paleta de colores y restricciones del sitio..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="action-btn secondary" id="btn-cancel-client">Cancelar</button>
+          <button type="submit" class="action-btn primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DRAWER: HISTORIAL DE ACCIONES -->
+  <div id="actions-drawer" class="drawer hidden">
+    <div class="drawer-overlay"></div>
+    <div class="drawer-content">
+      <div class="drawer-header">
+        <h3>Historial Ilimitado de Acciones</h3>
+        <button class="modal-close" id="btn-close-actions">&times;</button>
+      </div>
+      <div class="drawer-body">
+        <div id="actions-list" class="actions-list">
+          <!-- Renderizado de logs de auditoría -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

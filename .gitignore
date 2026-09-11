@@ -1,0 +1,19 @@
+# Dependencias
+node_modules/
+
+# Archivos de entorno y claves secretas
+.env
+.env.local
+
+# Base de datos local SQLite (se genera automáticamente en runtime)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
