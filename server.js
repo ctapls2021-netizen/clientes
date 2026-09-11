@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import fs from 'node:fs';
 import multer from 'multer';
+import AdmZip from 'adm-zip';
 import { Clients, Conversations, Messages, Actions, ClientFiles } from './db.js';
 import { AVAILABLE_MODELS, streamChat } from './models.js';
 import { WebmasterTools } from './tools.js';
@@ -131,9 +132,57 @@ app.post('/api/clients/:id/files', upload.single('file'), (req, res) => {
       return res.status(404).json({ error: 'Cliente no encontrado.' });
     }
 
+    const filename = req.body.relativePath || req.file.originalname;
+
+    // Si es un archivo ZIP, descomprimir automáticamente todos los archivos y carpetas
+    if (req.file.originalname.toLowerCase().endsWith('.zip') && req.body.extractZip !== 'false') {
+      const zipPath = path.join(uploadsDir, req.file.filename);
+      let extractedCount = 0;
+
+      try {
+        const zip = new AdmZip(zipPath);
+        const zipEntries = zip.getEntries();
+
+        for (const entry of zipEntries) {
+          // Ignorar carpetas y metadatos ocultos del sistema
+          if (!entry.isDirectory && !entry.entryName.startsWith('__MACOSX') && !entry.name.startsWith('.')) {
+            const entryUniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${path.basename(entry.entryName)}`;
+            const targetEntryPath = path.join(uploadsDir, entryUniqueName);
+            
+            fs.writeFileSync(targetEntryPath, entry.getData());
+
+            ClientFiles.create({
+              clientId: client.id,
+              filename: entry.entryName,
+              storedName: entryUniqueName,
+              size: entry.header.size,
+              mimetype: 'text/plain'
+            });
+            extractedCount++;
+          }
+        }
+
+        // Eliminar el archivo ZIP contenedor para ahorrar espacio
+        try { fs.unlinkSync(zipPath); } catch (e) {}
+
+        Actions.create({
+          clientId: client.id,
+          type: 'folder_upload',
+          description: `Carpeta ZIP procesada: ${req.file.originalname} (${extractedCount} archivos extraídos)`,
+          status: 'success',
+          details: { zip: req.file.originalname, filesCount: extractedCount }
+        });
+
+        return res.status(201).json({ success: true, isZip: true, count: extractedCount });
+      } catch (zipErr) {
+        console.error('Error al descomprimir ZIP:', zipErr);
+        // Si falla la descompresión, guardarlo como archivo normal
+      }
+    }
+
     const newFile = ClientFiles.create({
       clientId: client.id,
-      filename: req.file.originalname,
+      filename: filename,
       storedName: req.file.filename,
       size: req.file.size,
       mimetype: req.file.mimetype
@@ -142,9 +191,9 @@ app.post('/api/clients/:id/files', upload.single('file'), (req, res) => {
     Actions.create({
       clientId: client.id,
       type: 'file_upload',
-      description: `Archivo subido: ${req.file.originalname} (${(req.file.size / 1024).toFixed(1)} KB)`,
+      description: `Archivo subido: ${filename} (${(req.file.size / 1024).toFixed(1)} KB)`,
       status: 'success',
-      details: { filename: req.file.originalname, size: req.file.size }
+      details: { filename: filename, size: req.file.size }
     });
 
     res.status(201).json(newFile);

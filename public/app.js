@@ -61,6 +61,9 @@ const DOM = {
   drawerClientNameFiles: document.getElementById('drawer-client-name-files'),
   uploadZone: document.getElementById('upload-zone'),
   fileInputElement: document.getElementById('file-input-element'),
+  folderInputElement: document.getElementById('folder-input-element'),
+  btnTriggerFiles: document.getElementById('btn-trigger-files'),
+  btnTriggerFolder: document.getElementById('btn-trigger-folder'),
   filesTotalCount: document.getElementById('files-total-count'),
   filesList: document.getElementById('files-list'),
   fileViewerModal: document.getElementById('file-viewer-modal'),
@@ -135,8 +138,23 @@ function setupEventListeners() {
   DOM.btnCloseViewer.addEventListener('click', () => DOM.fileViewerModal.classList.add('hidden'));
 
   // Upload handlers (click & drag and drop)
-  DOM.uploadZone.addEventListener('click', () => DOM.fileInputElement.click());
+  DOM.btnTriggerFiles.addEventListener('click', (e) => {
+    e.stopPropagation();
+    DOM.fileInputElement.click();
+  });
+
+  DOM.btnTriggerFolder.addEventListener('click', (e) => {
+    e.stopPropagation();
+    DOM.folderInputElement.click();
+  });
+
   DOM.fileInputElement.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleFileUpload(e.target.files);
+    }
+  });
+
+  DOM.folderInputElement.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
       handleFileUpload(e.target.files);
     }
@@ -620,21 +638,30 @@ async function handleFileUpload(filesList) {
   const client = getCurrentClient();
   if (!client) return;
 
-  for (const file of filesList) {
+  const total = filesList.length;
+  DOM.filesTotalCount.textContent = `Subiendo ${total} archivo${total === 1 ? '' : 's'}...`;
+
+  for (let i = 0; i < total; i++) {
+    const file = filesList[i];
     const formData = new FormData();
     formData.append('file', file);
+    if (file.webkitRelativePath) {
+      formData.append('relativePath', file.webkitRelativePath);
+    }
 
     try {
       await fetch(`/api/clients/${client.id}/files`, {
         method: 'POST',
         body: formData
       });
+      DOM.filesTotalCount.textContent = `Procesando ${i + 1}/${total}...`;
     } catch (err) {
-      alert(`Error al subir ${file.name}: ${err.message}`);
+      console.error(`Error al subir ${file.name}:`, err);
     }
   }
 
   DOM.fileInputElement.value = '';
+  DOM.folderInputElement.value = '';
   await loadClientFiles(client.id);
 }
 

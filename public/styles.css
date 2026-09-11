@@ -780,6 +780,33 @@ body {
   color: var(--text-muted);
 }
 
+.upload-buttons-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.upload-choice-btn {
+  background: #252834;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.upload-choice-btn:hover {
+  background: var(--accent-blue);
+  color: white;
+  border-color: var(--accent-hover);
+}
+
 .files-header-section {
   display: flex;
   align-items: center;
