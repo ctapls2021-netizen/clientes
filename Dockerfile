@@ -1,5 +1,5 @@
-# Imagen oficial ligera de Node.js
-FROM node:22-alpine
+# Imagen oficial de Node.js alojada en Amazon Public ECR (sin límites de rate limit 429 de Docker Hub)
+FROM public.ecr.aws/docker/library/node:22-alpine
 
 # Crear directorio de trabajo
 WORKDIR /app
