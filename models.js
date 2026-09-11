@@ -3,32 +3,32 @@ dotenv.config();
 
 export const AVAILABLE_MODELS = [
   {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
+    id: 'gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
     speed: 'Ultra Rápido',
     badge: 'Fast',
-    description: 'El modelo insignia para tareas diarias de webmaster, respuestas en milisegundos y bajo consumo de cuota.'
+    description: 'El modelo más avanzado y rápido de Google para tareas diarias de webmaster.'
   },
   {
-    id: 'gemini-2.0-flash-thinking-exp-01-21',
-    name: 'Gemini 2.0 Flash Thinking',
-    speed: 'Razonamiento',
-    badge: 'Thinking',
-    description: 'Modo de pensamiento paso a paso para resolver bugs complejos de código y arquitectura web.'
+    id: 'gemini-3.7-flash',
+    name: 'Gemini 3.7 Flash',
+    speed: 'Rápido',
+    badge: 'Fast',
+    description: 'Excelente balance entre velocidad y razonamiento paso a paso.'
   },
   {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
+    id: 'gemini-3.6-flash',
+    name: 'Gemini 3.6 Flash',
+    speed: 'Estable',
+    badge: 'Standard',
+    description: 'Modelo de referencia oficial recomendado por Google para producción.'
+  },
+  {
+    id: 'gemini-3.1-pro',
+    name: 'Gemini 3.1 Pro',
     speed: 'Razonamiento Profundo',
     badge: 'Pro',
-    description: 'Ventana de contexto de hasta 2 millones de tokens. Capaz de inspeccionar repositorios y sitios completos.'
-  },
-  {
-    id: 'gemini-1.5-flash',
-    name: 'Gemini 1.5 Flash',
-    speed: 'Rápido y Estable',
-    badge: 'Standard',
-    description: 'Alta eficiencia y estabilidad comprobada para auditorías rutinarias y chequeos automáticos.'
+    description: 'Máxima ventana de contexto y capacidad de razonamiento para arquitecturas complejas.'
   }
 ];
 
@@ -132,7 +132,7 @@ async function* streamDevFallback(modelId, client, prompt) {
  */
 export async function* streamChat({ modelId, client, messages, prompt }) {
   const geminiKey = process.env.GEMINI_API_KEY;
-  const targetModel = modelId || 'gemini-2.0-flash';
+  const targetModel = modelId || 'gemini-3.6-flash';
 
   try {
     if (geminiKey) {

@@ -6,7 +6,7 @@ const state = {
   activeClientId: null,
   activeConversationId: null,
   models: [],
-  selectedModelId: 'gemini-2.0-flash',
+  selectedModelId: 'gemini-3.6-flash',
   hasGeminiKey: false
 };
 
